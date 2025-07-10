@@ -1855,9 +1855,6 @@
                     <i class="fas fa-times ml-1"></i> إلغاء
                 </button>
                 <div class="d-flex">
-                    <button type="button" class="btn btn-primary mr-2" id="print-invoice">
-                        <i class="fas fa-print ml-1"></i> طباعة الفاتورة
-                    </button>
                     <button type="button" class="btn btn-success" id="save-invoice">
                         <i class="fas fa-save ml-1"></i> حفظ الفاتورة
                     </button>
@@ -6135,44 +6132,58 @@
                     .slice(0, 5);
                 
                 this.tables.latestProducts.innerHTML = '';
-                latestProducts.forEach(product => {
+                
+                if (latestProducts.length === 0) {
                     const row = document.createElement('tr');
-                    
-                    // Determine product status
-                    let statusClass, statusText;
-                    if (product.quantity === 0) {
-                        statusClass = 'status-danger';
-                        statusText = 'منتهي';
-                    } else if (product.quantity <= 10) {
-                        statusClass = 'status-warning';
-                        statusText = 'كمية منخفضة';
-                    } else {
-                        statusClass = 'status-success';
-                        statusText = 'متوفر';
-                    }
-                    
                     row.innerHTML = `
-                        <td>${product.name}</td>
-                        <td>${product.balance.toFixed(2)}</td>
-                        <td class="${product.quantity === 0 ? 'no-stock' : (product.quantity <= 10 ? 'low-stock' : '')}">
-                            ${product.quantity}
-                        </td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td class="actions">
-                            <button class="action-btn edit" data-id="${product.id}" title="تعديل المنتج">
-                                <i class="fas fa-edit"></i>
-                            </button>
+                        <td colspan="5" class="p-0">
+                            <div style="width: 100%; text-align: center; padding: 30px 20px; background: #f8f9fa; color: #6c757d;">
+                                <i class="fas fa-box-open" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
+                                <span>لا توجد منتجات متاحة</span>
+                            </div>
                         </td>
                     `;
-                    
                     this.tables.latestProducts.appendChild(row);
-                    
-                    // Add edit event listener
-                    row.querySelector('.action-btn.edit').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.openProductModal(product.id);
+                } else {
+                    latestProducts.forEach(product => {
+                        const row = document.createElement('tr');
+                        
+                        // Determine product status
+                        let statusClass, statusText;
+                        if (product.quantity === 0) {
+                            statusClass = 'status-danger';
+                            statusText = 'منتهي';
+                        } else if (product.quantity <= 10) {
+                            statusClass = 'status-warning';
+                            statusText = 'كمية منخفضة';
+                        } else {
+                            statusClass = 'status-success';
+                            statusText = 'متوفر';
+                        }
+                        
+                        row.innerHTML = `
+                            <td>${product.name}</td>
+                            <td>${product.balance.toFixed(2)}</td>
+                            <td class="${product.quantity === 0 ? 'no-stock' : (product.quantity <= 10 ? 'low-stock' : '')}">
+                                ${product.quantity}
+                            </td>
+                            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                            <td class="actions">
+                                <button class="action-btn edit" data-id="${product.id}" title="تعديل المنتج">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </td>
+                        `;
+                        
+                        this.tables.latestProducts.appendChild(row);
+                        
+                        // Add edit event listener
+                        row.querySelector('.action-btn.edit').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.openProductModal(product.id);
+                        });
                     });
-                });
+                }
                 
                 // Recent invoices (5 most recent)
                 const recentInvoices = [...this.invoices]
@@ -6180,64 +6191,78 @@
                     .slice(0, 5);
                 
                 this.tables.recentInvoices.innerHTML = '';
-                recentInvoices.forEach((invoice, index) => {
+                
+                if (recentInvoices.length === 0) {
                     const row = document.createElement('tr');
-                    const rowNumber = index + 1; // 1-based index
-                    
-                    // Format status
-                    let statusClass = '';
-                    let statusText = '';
-                    
-                    switch(invoice.status) {
-                        case 'sales':
-                            statusClass = 'status-info';
-                            statusText = 'فاتورة مبيعات';
-                            break;
-                        case 'paid':
-                            statusClass = 'status-success';
-                            statusText = 'مدفوعة';
-                            break;
-                        case 'unpaid':
-                            statusClass = 'status-danger';
-                            statusText = 'غير مدفوعة';
-                            break;
-                        case 'partial':
-                            statusClass = 'status-warning';
-                            statusText = 'مدفوعة جزئياً';
-                            break;
-                        case 'pending':
-                            statusClass = 'status-warning';
-                            statusText = 'قيد المراجعة';
-                            break;
-                        default:
-                            statusClass = 'status-secondary';
-                            statusText = 'غير معروفة';
-                    }
-                    
-                    // Get customer name, fallback to invoice.customer or 'عميل'
-                    const customer = this.getCustomer(invoice.customerId) || { name: invoice.customer || 'عميل' };
-                    
                     row.innerHTML = `
-                        <td>${rowNumber}</td>
-                        <td>${customer.name}</td>
-                        <td>${invoice.date}</td>
-                        <td>${invoice.total.toFixed(2)} ج.م</td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>
-                            <button class="action-btn print-invoice-btn" data-id="${invoice.id}" title="طباعة">
-                                <i class="fas fa-print"></i>
-                            </button>
+                        <td colspan="6" class="p-0">
+                            <div style="width: 100%; text-align: center; padding: 30px 20px; background: #f8f9fa; color: #6c757d;">
+                                <i class="fas fa-receipt" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
+                                <span>لا توجد فواتير متاحة</span>
+                            </div>
                         </td>
                     `;
-                    
                     this.tables.recentInvoices.appendChild(row);
-                    
-                    // Add print event listener to the button
-                    row.querySelector('.print-invoice-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.printInvoice(invoice.id);
+                } else {
+                    recentInvoices.forEach((invoice, index) => {
+                        const row = document.createElement('tr');
+                        const rowNumber = index + 1; // 1-based index
+                        
+                        // Format status
+                        let statusClass = '';
+                        let statusText = '';
+                        
+                        switch(invoice.status) {
+                            case 'sales':
+                                statusClass = 'status-info';
+                                statusText = 'فاتورة مبيعات';
+                                break;
+                            case 'paid':
+                                statusClass = 'status-success';
+                                statusText = 'مدفوعة';
+                                break;
+                            case 'unpaid':
+                                statusClass = 'status-danger';
+                                statusText = 'غير مدفوعة';
+                                break;
+                            case 'partial':
+                                statusClass = 'status-warning';
+                                statusText = 'مدفوعة جزئياً';
+                                break;
+                            case 'pending':
+                                statusClass = 'status-warning';
+                                statusText = 'قيد المراجعة';
+                                break;
+                            default:
+                                statusClass = 'status-secondary';
+                                statusText = 'غير معروفة';
+                        }
+                        
+                        // Get customer name, fallback to invoice.customer or 'عميل'
+                        const customer = this.getCustomer(invoice.customerId) || { name: invoice.customer || 'عميل' };
+                        
+                        row.innerHTML = `
+                            <td>${rowNumber}</td>
+                            <td>${customer.name}</td>
+                            <td>${invoice.date}</td>
+                            <td>${invoice.total.toFixed(2)} ج.م</td>
+                            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                            <td>
+                                <button class="action-btn print-invoice-btn" data-id="${invoice.id}" title="طباعة">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                            </td>
+                        `;
+                        
+                        this.tables.recentInvoices.appendChild(row);
+                        
+                        // Add print event listener to the button
+                        row.querySelector('.print-invoice-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.printInvoice(invoice.id);
+                        });
                     });
-                });
+                }
             }
             
             showAlert(message, type) {
