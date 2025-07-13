@@ -1306,30 +1306,7 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Latest Products -->
-                    <div class="card fade-in">
-                        <div class="card-header">
-                            <h3>أحدث المنتجات</h3>
-                        </div>
-                        <div class="card-body">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>اسم المنتج</th>
-                                        <th>السعر (ج.م)</th>
-                                        <th>الكمية</th>
-                                        <th>الحالة</th>
-                                        <th>الإجراءات</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="latest-products-table-body">
-                                    <!-- Will be populated by JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
+
                     <!-- Recent Invoices -->
                     <div class="card fade-in">
                         <div class="card-header">
@@ -1353,6 +1330,30 @@
                             </table>
                         </div>
                     </div>
+                          
+                    <!-- Latest Products -->
+                    <div class="card fade-in">
+                        <div class="card-header">
+                            <h3>أحدث المنتجات</h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>اسم المنتج</th>
+                                        <th>السعر (ج.م)</th>
+                                        <th>الكمية</th>
+                                        <th>الحالة</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="latest-products-table-body">
+                                    <!-- Will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
                 </div>
                 
                 <!-- Products Management Page -->
@@ -2942,11 +2943,13 @@
                         <select class="form-control invoice-product" required 
                                 style="border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 12px; width: 100%;">
                             <option value="">اختر منتج</option>
-                            ${this.products.map(p => 
-                                `<option value="${p.id}" data-balance="${p.balance}" data-quantity="${p.quantity || 0}">
-                                    ${p.name} (${p.balance.toFixed(2)} ج.م)
-                                </option>`
-                            ).join('')}
+                            ${[...this.products]
+                                .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar', {sensitivity: 'base'}))
+                                .map(p => 
+                                    `<option value="${p.id}" data-balance="${p.balance}" data-quantity="${p.quantity || 0}">
+                                        ${p.name} (${p.balance.toFixed(2)} ج.م)
+                                    </option>`
+                                ).join('')}
                         </select>
                         <div class="quantity-alert" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff8e1; color: #ff8f00; padding: 4px 8px; font-size: 12px; border-radius: 0 0 4px 4px; border: 1px solid #ffe0b2; border-top: none; z-index: 10;">
                             <i class="fas fa-exclamation-triangle"></i> <span class="alert-text"></span>
@@ -3707,12 +3710,12 @@
                     let customerData = { ...invoice };
                     
                     // If we have a customer ID but no customer object, try to look it up
-                    if (invoice.customerId && !invoice.customer) {
+                    if (invoice.customerId) {
                         const customer = this.getCustomer(invoice.customerId);
                         if (customer) {
                             customerData.customer = customer;
-                            customerData.customerName = customer.name || invoice.customerName || 'عميل';
-                            customerData.customerPhone = customer.phone || invoice.customerPhone || 'N/A';
+                            customerData.customerName = customer.name || customerData.customerName || 'عميل';
+                            customerData.customerPhone = customer.phone || customerData.customerPhone || 'N/A';
                         }
                     }
                     // If we have a customer object, ensure the direct properties are set
@@ -6795,8 +6798,13 @@
                         customerSelect.remove(1);
                     }
                     
-                    // Add customers to the dropdown
-                    this.customers.forEach(customer => {
+                    // Create a copy of customers array and sort by Arabic name
+                    const sortedCustomers = [...this.customers].sort((a, b) => 
+                        (a.name || '').localeCompare(b.name || '', 'ar', {sensitivity: 'base'})
+                    );
+                    
+                    // Add sorted customers to the dropdown
+                    sortedCustomers.forEach(customer => {
                         const option = document.createElement('option');
                         option.value = customer.id;
                         option.textContent = customer.name;
@@ -6806,8 +6814,79 @@
             }
         }
 
+        // Function to check if data is empty (only contains empty arrays and metadata)
+        function isDataEmpty(data) {
+            // List of main data keys that should be checked
+            const mainDataKeys = ['products', 'invoices', 'customers', 'suppliers'];
+            
+            // Check if all main data arrays are empty
+            const hasData = mainDataKeys.some(key => 
+                Array.isArray(data[key]) && data[key].length > 0
+            );
+            
+            // Return true only if there's no data in any of the main arrays
+            return !hasData;
+        }
+
+        // Function to save localStorage data as JSON file
+        function saveLocalStorageAsJson() {
+            try {
+                const dataToSave = {};
+                // Get all keys from localStorage
+                const keys = Object.keys(localStorage);
+                
+                // Check if localStorage is empty
+                if (keys.length === 0) {
+                    console.log('localStorage is empty, skipping backup');
+                    return false;
+                }
+                
+                // Get all data from localStorage
+                keys.forEach(key => {
+                    try {
+                        // Try to parse the value as JSON, if it fails store as is
+                        dataToSave[key] = JSON.parse(localStorage[key]);
+                    } catch (e) {
+                        dataToSave[key] = localStorage[key];
+                    }
+                });
+                
+                // Check if the data is empty (only contains empty arrays and metadata)
+                if (isDataEmpty(dataToSave)) {
+                    console.log('No actual data to back up (only empty arrays and metadata)');
+                    return false;
+                }
+                
+                // Create a blob and download link
+                const dataStr = JSON.stringify(dataToSave, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                
+                // Create a timestamp for the filename
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `localstorage_backup_${timestamp}.txt`;
+                
+                // Create and trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                return true;
+            } catch (error) {
+                console.error('Error saving localStorage as JSON:', error);
+                return false;
+            }
+        }
+
         // Initialize the application when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
+            // Save localStorage data as JSON when the app loads
+            saveLocalStorageAsJson();
+            
             window.inventorySystem = new InventorySystem();
             
             // Initialize print invoice functionality
@@ -6834,14 +6913,70 @@
             // Handle print button in invoice details modal
             const printDetailsBtn = document.getElementById('print-invoice-details');
             if (printDetailsBtn) {
-                printDetailsBtn.addEventListener('click', (e) => {
+                printDetailsBtn.addEventListener('click', async (e) => {
+                    console.log('Print button clicked in invoice details modal');
                     e.preventDefault();
-                    const invoiceId = document.querySelector('#invoice-details-modal .modal-title')?.textContent?.match(/#(\S+)/)?.[1];
-                    if (invoiceId) {
-                        const invoice = window.inventorySystem?.getInvoice(invoiceId);
-                        if (invoice) {
-                            window.printInvoice.openModal(invoice);
+                    
+                    try {
+                        const modal = document.querySelector('#invoice-details-modal');
+                        const invoiceId = modal?.querySelector('.modal-title')?.textContent?.match(/#(\S+)/)?.[1];
+                        console.log('Extracted invoice ID:', invoiceId);
+                        
+                        if (!invoiceId) {
+                            console.error('Could not extract invoice ID from modal');
+                            return;
                         }
+                        
+                        // Get a fresh copy of the invoice data
+                        let invoice = window.inventorySystem?.getInvoice(invoiceId);
+                        if (!invoice) {
+                            console.error('No invoice found with ID:', invoiceId);
+                            return;
+                        }
+                        
+                        console.log('Initial invoice data:', {
+                            id: invoice.id,
+                            hasCustomerId: !!invoice.customerId,
+                            hasCustomerObject: !!invoice.customer,
+                            customerPhoneInInvoice: invoice.customerPhone,
+                            customerPhoneInCustomer: invoice.customer?.phone
+                        });
+                        
+                        // Always ensure we have the customer data
+                        if (invoice.customerId) {
+                            console.log('Fetching customer data for ID:', invoice.customerId);
+                            const customer = window.inventorySystem?.getCustomer(invoice.customerId);
+                            console.log('Retrieved customer data:', customer);
+                            
+                            if (customer) {
+                                // Create a new object with customer data included
+                                invoice = {
+                                    ...invoice,
+                                    customer,
+                                    // Ensure customerPhone is set from customer data if not already set
+                                    customerPhone: invoice.customerPhone || customer.phone
+                                };
+                                console.log('Updated invoice with customer data:', {
+                                    customerPhone: invoice.customerPhone,
+                                    customer: !!invoice.customer
+                                });
+                            }
+                        }
+                        
+                        console.log('Final invoice data before opening print modal:', {
+                            id: invoice.id,
+                            hasCustomerId: !!invoice.customerId,
+                            hasCustomerObject: !!invoice.customer,
+                            customerPhoneInInvoice: invoice.customerPhone,
+                            customerPhoneInCustomer: invoice.customer?.phone
+                        });
+                        
+                        // Use the inventory system's print method which handles customer data properly
+                        window.inventorySystem.printInvoice(invoice.id);
+                        
+                    } catch (error) {
+                        console.error('Error in print button handler:', error);
+                        alert('حدث خطأ أثناء محاولة طباعة الفاتورة');
                     }
                 });
             }
@@ -6857,6 +6992,9 @@
             // Set up click handler for all menu items
             document.querySelectorAll('.menu-item').forEach(item => {
                 item.addEventListener('click', (e) => {
+                    // Prevent default behavior to avoid unwanted scrolling
+                    e.preventDefault();
+                    
                     const pageId = e.currentTarget.getAttribute('data-page');
                     console.log('Menu item clicked:', pageId);
                     
@@ -6865,10 +7003,15 @@
                         page.style.display = 'none';
                     });
                     
-                    // Show selected page
+                    // Show selected page and scroll to top
                     const selectedPage = document.getElementById(pageId);
                     if (selectedPage) {
                         selectedPage.style.display = 'block';
+                        // Smooth scroll to top of the page
+                        window.scrollTo({
+                            top: 0,
+                            behavior: 'smooth'
+                        });
                     }
                     
                     // Update active menu item
@@ -7208,7 +7351,12 @@
             }
             
             openModal(invoiceData) {
-                console.log('openModal called with data:', invoiceData);
+                console.log('PrintInvoice.openModal called with data:', invoiceData);
+                console.log('Customer phone data in openModal:', {
+                    customerPhone: invoiceData?.customerPhone,
+                    customer: invoiceData?.customer,
+                    customerPhoneInCustomer: invoiceData?.customer?.phone
+                });
                 
                 // Ensure modal and its elements exist
                 if (!this.printModal || !this.printContainer) {
@@ -7325,7 +7473,20 @@
             }
             
             generateInvoiceHTML(invoice) {
-                if (!invoice) return '<div class="error">لا توجد بيانات فاتورة متاحة</div>';
+                console.log('Generating invoice HTML with data:', invoice);
+        
+                if (!invoice) {
+                    console.error('No invoice data provided to generateInvoiceHTML');
+                    return '<div class="error">لا توجد بيانات فاتورة متاحة</div>';
+                }
+        
+                console.log('Customer data in invoice:', {
+                    customerId: invoice.customerId,
+                    customerName: invoice.customerName,
+                    customerPhone: invoice.customerPhone,
+                    hasCustomerObject: !!invoice.customer,
+                    customerPhoneInCustomer: invoice.customer?.phone
+                });
                 
                 const formatCurrency = (amount) => {
                     if (amount === undefined || amount === null || isNaN(amount)) return '0.00';
@@ -7532,13 +7693,7 @@
                     // Handle print buttons in the invoices list
                     const invoiceId = printBtn.dataset.invoiceId || printBtn.dataset.id;
                     if (invoiceId) {
-                        const invoice = window.inventorySystem?.getInvoice(invoiceId);
-                        if (invoice) {
-                            window.printInvoice.openModal(invoice);
-                        } else {
-                            console.error('Invoice not found:', invoiceId);
-                            window.inventorySystem?.showAlert('خطأ: لم يتم العثور على الفاتورة', 'error');
-                        }
+                        window.inventorySystem?.printInvoice(invoiceId);
                     }
                 } else if (printBtn.id === 'print-invoice-details' || printBtn.closest('#print-invoice-details')) {
                     // Handle print button in invoice details modal
@@ -7546,9 +7701,27 @@
                     if (invoiceModal) {
                         const invoiceId = invoiceModal.querySelector('.modal-header h3')?.textContent?.match(/#(\S+)/)?.[1];
                         if (invoiceId) {
+                            // Get the invoice and ensure we have the latest data
                             const invoice = window.inventorySystem?.getInvoice(invoiceId);
                             if (invoice) {
-                                window.printInvoice.openModal(invoice);
+                                // Create a copy of the invoice to avoid modifying the original
+                                const invoiceToPrint = { ...invoice };
+                                
+                                // Ensure customer data is included
+                                if (invoice.customerId && !invoiceToPrint.customer) {
+                                    const customer = window.inventorySystem?.getCustomer(invoice.customerId);
+                                    if (customer) {
+                                        invoiceToPrint.customer = customer;
+                                        invoiceToPrint.customerPhone = customer.phone;
+                                        console.log('Added customer data for printing:', {
+                                            customerPhone: invoiceToPrint.customerPhone,
+                                            customerName: customer.name
+                                        });
+                                    }
+                                }
+                                
+                                // Use the inventory system's print method which handles the data properly
+                                window.inventorySystem?.printInvoice(invoiceToPrint.id || invoiceToPrint);
                                 return;
                             }
                         }
