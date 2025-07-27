@@ -4442,6 +4442,12 @@
                             </td>
                         </tr>`;
                     tbody.innerHTML = noResultsHtml;
+                    // Safely hide pagination if it exists
+                    if (this.pagination && this.pagination.invoices) {
+                        this.pagination.invoices.style.display = 'none';
+                    } else {
+                        console.warn('Pagination element for invoices not found');
+                    }
                     return;
                 }
                 
@@ -5844,8 +5850,6 @@
                 const end = start + this.itemsPerPage;
                 const paginatedSuppliers = suppliersToDisplay.slice(start, end);
                 
-                console.log('Paginated suppliers:', paginatedSuppliers);
-                
                 if (paginatedSuppliers.length === 0) {
                     tbody.innerHTML = `
                         <tr>
@@ -5853,10 +5857,14 @@
                                 <div class="empty-state">
                                     <i class="fas fa-truck"></i>
                                     <h3>${filteredSuppliers ? 'لا توجد نتائج' : 'لا يوجد موردين'}</h3>
-                                    <p>${filteredSuppliers ? 'لم يتم العثور على موردين بهذه المواصفات' : 'قم بإضافة موردين جدد لعرضهم هنا'}</p>
+                                    <p>${filteredSuppliers ? 'حاول تغيير كلمات البحث' : 'قم بإضافة موردين جدد لعرضهم هنا'}</p>
                                 </div>
                             </td>
                         </tr>`;
+                    // Safely hide pagination if it exists
+                    if (this.pagination && this.pagination.suppliers) {
+                        this.pagination.suppliers.style.display = 'none';
+                    }
                     return;
                 }
                 
@@ -5866,8 +5874,8 @@
                     row.title = 'انقر لعرض سجل المعاملات';
                     row.innerHTML = `
                         <td>${start + index + 1}</td>
-                        <td>${supplier.name}</td>
-                        <td>${supplier.phone}</td>
+                        <td>${supplier.name || 'غير معروف'}</td>
+                        <td>${supplier.phone || 'غير متوفر'}</td>
                         <td class="actions">
                             <button class="action-btn edit" data-id="${supplier.id}" title="تعديل">
                                 <i class="fas fa-edit"></i>
@@ -5882,9 +5890,23 @@
                     tbody.appendChild(row);
                 });
                 
+                // Add click handler to the entire row for showing details
+                tbody.querySelectorAll('tr').forEach(row => {
+                    row.addEventListener('click', (e) => {
+                        // Don't trigger if clicking on action buttons
+                        if (!e.target.closest('.actions')) {
+                            const id = row.querySelector('.history')?.getAttribute('data-id');
+                            if (id) {
+                                this.showSupplierHistory(id);
+                            }
+                        }
+                    });
+                });
+                
                 // Add event listeners to action buttons
                 tbody.querySelectorAll('.edit').forEach(btn => {
                     btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
                         const id = e.currentTarget.getAttribute('data-id');
                         this.openSupplierModal(id);
                     });
@@ -5906,17 +5928,27 @@
                     });
                 });
                 
-                // Add search functionality
+                // Show pagination if it was previously hidden
+                if (this.pagination && this.pagination.suppliers) {
+                    this.pagination.suppliers.style.display = 'flex';
+                }
+                
+                // Add search functionality if not already added
                 const searchInput = document.getElementById('supplier-search');
-                if (searchInput) {
+                if (searchInput && !searchInput.dataset.listenerAdded) {
                     searchInput.addEventListener('input', (e) => {
-                        const searchTerm = e.target.value.toLowerCase();
-                        const filtered = this.suppliers.filter(supplier => 
-                            supplier.name.toLowerCase().includes(searchTerm) ||
-                            supplier.phone.includes(searchTerm)
-                        );
-                        this.renderSuppliersTable(filtered);
+                        const searchTerm = e.target.value.toLowerCase().trim();
+                        if (searchTerm) {
+                            const filtered = this.suppliers.filter(supplier => 
+                                (supplier.name && supplier.name.toLowerCase().includes(searchTerm)) ||
+                                (supplier.phone && supplier.phone.includes(searchTerm))
+                            );
+                            this.renderSuppliersTable(filtered);
+                        } else {
+                            this.renderSuppliersTable();
+                        }
                     });
+                    searchInput.dataset.listenerAdded = 'true';
                 }
                 
                 // Render pagination if not filtered
@@ -6828,7 +6860,7 @@
             return !hasData;
         }
 
-        // Function to save localStorage data as JSON file
+        // Function to save localStorage data
         function saveLocalStorageAsJson() {
             try {
                 const dataToSave = {};
@@ -6856,28 +6888,28 @@
                     console.log('No actual data to back up (only empty arrays and metadata)');
                     return false;
                 }
+                // // Create a blob and download link
+                // const dataStr = JSON.stringify(dataToSave, null, 2);
+                // const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                // const url = URL.createObjectURL(dataBlob);
                 
-                // Create a blob and download link
-                const dataStr = JSON.stringify(dataToSave, null, 2);
-                const dataBlob = new Blob([dataStr], {type: 'application/json'});
-                const url = URL.createObjectURL(dataBlob);
+                // // Create a timestamp for the filename
+                // const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                // const filename = `localstorage_backup_${timestamp}.txt`;
                 
-                // Create a timestamp for the filename
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `localstorage_backup_${timestamp}.txt`;
+                // // Create and trigger download
+                // const a = document.createElement('a');
+                // a.href = url;
+                // a.download = filename;
+                // document.body.appendChild(a);
+                // a.click();
+                // document.body.removeChild(a);
+                // URL.revokeObjectURL(url);
                 
-                // Create and trigger download
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
+                console.log('LocalStorage data prepared for backup');
                 return true;
             } catch (error) {
-                console.error('Error saving localStorage as JSON:', error);
+                console.error('Error processing localStorage data:', error);
                 return false;
             }
         }
